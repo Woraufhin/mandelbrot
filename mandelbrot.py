@@ -72,61 +72,67 @@ class Graphics(object):
 
 class Buffer(object):
 
-    def __init__(self, size):
-        self.buffer = size
+    buffer_size = 0
 
-    def get_decorator(self, func):
+    def __init__(self):
+        self.check = 0
+
+    def __decorator(self, func):
         def wrapper(*args, **kwargs):
-            buf = 0
+            self.check += 1
 
+            # I assume I will only hand paintors to the buffer
+            if self.check % self.buffer_size == 0:
+                args[0].graphics.blit_screen()
+                args[0].graphics.update()
+
+            return func(*args, **kwargs)
+        return wrapper
+
+    @staticmethod
+    def flush(graphics):
+        graphics.graphics.blit_screen()
+        graphics.graphics.update()
+
+    @staticmethod
+    def decorate():
+        return Buffer().__decorator
 
 class ComplexPaintor(object):
 
-    def __init__(self, graphics, buffer, painting=False):
+    def __init__(self, graphics, painting=False):
         self.graphics = graphics
         self.painting = painting
-        self.buffer = buffer
 
     def decide_colors(self):
         pass
 
+    @Buffer.decorate()
     def draw(self, pos, color):
         self.graphics.paint_px(pos, color)
 
     def complex_draw(self, complex_plane):
-        # Set painting
-        self.painting = True
 
-        # Start painting
-        buff = 0
         for cnum in complex_plane:
             print cnum
             if cnum[0] == True:
                 self.draw((cnum[1], cnum[2]), (255, 255, 255))
+            else:
+                self.draw((cnum[1], cnum[2]), (130, 122, 111))
 
-            # Buffer logic
-            if buff % self.buffer == 0:
-                self.graphics.blit_screen()
-                self.graphics.update()
-            buff += 1
+        Buffer.flush(self)
 
-        # Catch unbuffered
-        self.graphics.blit_screen()
-        self.graphics.update()
-
-        # No longer painting
-        self.painting = False
-
-if __name__ == '__main__':
-    config = Config.get_config('config.toml')
+def cli():
+    config = Config.get_config(os.path.expanduser('~/.config/mandelbrot/config.toml'))
     settings = config['settings']
+    Buffer.buffer_size = settings['buffer']
     print config
     math = Mathematics(settings['step'], settings['width'])
     cplane = math.complex_plane(0, 0)
     gui = Graphics(settings['width'], settings['height'])
     gui.fill_surface((0, 0, 0))
     gui.blit_screen()
-    paintor = ComplexPaintor(gui, settings['buffer'])
+    paintor = ComplexPaintor(gui)
     pygame.display.flip()
 
     while True:
@@ -141,3 +147,6 @@ if __name__ == '__main__':
                 gui.blit_screen()
                 pygame.display.flip()
                 paintor.complex_draw(cplane)
+
+if __name__ == '__main__':
+    cli()
