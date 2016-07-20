@@ -1,0 +1,5 @@
+[settings]
+width = 1000
+height = 1000
+buffer = 1000
+step = 0.003
