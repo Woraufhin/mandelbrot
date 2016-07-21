@@ -13,11 +13,16 @@ class Config(object):
 
 class Mathematics(object):
 
-    def __init__(self, step, size):
-        self.step = step
+    step = 0.1
+
+    def __init__(self, size, iterations, threshold):
         self.size = size
+        self.iterations = iterations
+        self.threshold = threshold
 
     def complex_plane(self, start_x, start_y):
+        cx = (start_x * self.step) - (self.size / 2) * self.step
+        cy = (start_y * self.step) - (self.size / 2) * self.step
         ''' Returns a generator with all important information:
 
         If complex number diverges or bounds to 0 under i interation, the x and y coordinates
@@ -28,22 +33,27 @@ class Mathematics(object):
         '''
 
         for y in range(0, self.size + 1):
+            cy += self.step
             for x in range(0, self.size + 1):
-                cpix = self.to_complex(float(x - start_x), float(y - start_y), self.step, self.size)
-                yield self.calc_mandelbrot(cpix, 25, 2.0), x, y, cpix
+                cx += self.step
+                cpix = self.to_complex(float(cx), float(cy), self.step, self.size)
+                yield self.calc_mandelbrot(cpix), x, y, cpix
+            cx = (start_x * self.step) - (self.size / 2) * self.step
 
     def to_complex(self, x, y, step, size):
-        cx = (x - size / 2) * step
-        cy = (y - size / 2) * step
+        #cx = (x - size / 2) * step
+        #cy = (y - size / 2) * step
+        cx = x
+        cy = y
         return complex(cx, cy)
 
-    def calc_mandelbrot(self, complex_num, iterations, threshold):
+    def calc_mandelbrot(self, complex_num):
         count = 0
         z = 0
-        while count < iterations:
+        while count < self.iterations:
 
             # Of course threshold could be just 2.0, but we can't catch how quickly c escapes 0
-            if abs(z) > threshold:
+            if abs(z) > self.threshold:
                 return False
             z = z ** 2 + complex_num
             count += 1
@@ -126,14 +136,12 @@ def cli():
     config = Config.get_config(os.path.expanduser('~/.config/mandelbrot/config.toml'))
     settings = config['settings']
     Buffer.buffer_size = settings['buffer']
-    print config
-    math = Mathematics(settings['step'], settings['width'])
+    Mathematics.step = settings['step']
+    math = Mathematics(settings['width'], settings['iterations'], settings['threshold'])
     cplane = math.complex_plane(0, 0)
     gui = Graphics(settings['width'], settings['height'])
-    gui.fill_surface((0, 0, 0))
-    gui.blit_screen()
     paintor = ComplexPaintor(gui)
-    pygame.display.flip()
+    paintor.complex_draw(cplane)
 
     while True:
 
@@ -143,9 +151,9 @@ def cli():
             if event.type == pygame.MOUSEBUTTONUP:
                 pass
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                gui.fill_surface((0, 0, 0))
-                gui.blit_screen()
-                pygame.display.flip()
+                Mathematics.step /= settings['zoom']
+                x, y = event.pos
+                cplane = math.complex_plane(x, y)
                 paintor.complex_draw(cplane)
 
 if __name__ == '__main__':
